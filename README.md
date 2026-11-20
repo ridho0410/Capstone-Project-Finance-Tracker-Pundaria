@@ -12,8 +12,8 @@ Pundaria **tidak** memakai agent otonom penuh. Pendekatan yang dipilih adalah ko
 
 | Lapisan | Peran | Implementasi |
 |---|---|---|
-| **P2 — Automation & Orchestration** | Menjalankan alur secara deterministik, terjadwal, dan dapat diaudit | n8n, Router, workflow Perintah, workflow Jadwal, Supabase RPC, error handler |
-| **P3 — AI Agent** | Memahami bahasa manusia dan input multimodal | GPT-4o mini, klasifikasi intent, ekstraksi JSON, OCR struk, transkripsi suara, tanya-jawab dengan konteks |
+| **P3 — Automation & Orchestration** | Menjalankan alur secara deterministik, terjadwal, dan dapat diaudit | n8n, Router, workflow Perintah, workflow Jadwal, Supabase RPC, error handler |
+| **P2 — AI Agent** | Memahami bahasa manusia dan input multimodal | GPT-4o mini, klasifikasi intent, ekstraksi JSON, OCR struk, transkripsi suara, tanya-jawab dengan konteks |
 
 Prinsipnya:
 
