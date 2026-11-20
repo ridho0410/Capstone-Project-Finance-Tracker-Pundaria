@@ -317,8 +317,6 @@ Bukti pengujian tersedia di [`docs/evidence/TEST-EVIDENCE.md`](docs/evidence/TES
 - [`docs/DEPLOY-VPS.md`](docs/DEPLOY-VPS.md) — deployment server
 - [`docs/RUNBOOK-telegram.md`](docs/RUNBOOK-telegram.md) — operasi bot, webhook, email, monitoring
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — masalah umum
-- [`docs/CHANGELOG.md`](docs/CHANGELOG.md) — riwayat perubahan
-- [`docs/Pundaria-Speaker-Notes.md`](docs/Pundaria-Speaker-Notes.md) — catatan pembicara
 
 ---
 
