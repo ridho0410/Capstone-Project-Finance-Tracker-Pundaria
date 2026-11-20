@@ -1,0 +1,775 @@
+{
+  "updatedAt": "2026-11-20T00:36:49.167Z",
+  "createdAt": "2026-11-18T10:07:33.662Z",
+  "id": "taY2Mfnu26k8uGMo",
+  "name": "Expense Tracker - Jadwal",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "15bc77a0-2736-44a9-8a8d-2b3da91513e5",
+      "name": "Jadwal Pagi",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -592
+      ],
+      "notes": "Setiap pukul 07.00 WIB (timezone workflow Asia/Jakarta)."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id as \"ID_Transaksi\",\n       occurred_at::text as \"Tanggal\",\n       kind as \"Jenis\",\n       category as \"Kategori\",\n       amount::float8 as \"Nominal\",\n       note as \"Keterangan\",\n       account_id as \"Dompet\"\nfrom public.transactions\nwhere deleted_at is null\norder by occurred_at desc, id desc",
+        "options": {}
+      },
+      "id": "be008406-f636-468f-8885-f293b04f7484",
+      "name": "Baca Data Pagi",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        -592
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Semua transaksi untuk rekap pagi."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime, timezone, timedelta\n\ndef parse_amount(value):\n    if isinstance(value, bool): return None\n    if isinstance(value, int): return value\n    digits = re.sub(r\"[^\\d]\", \"\", str(value or \"\"))\n    try: return int(digits) if digits else None\n    except ValueError: return None\nnow = datetime.now(timezone.utc) + timedelta(hours=7)\ntoday = now.date()\nyesterday = (today - timedelta(days=1)).isoformat()\nrows = []\nfor item in _items:\n    row = item.get(\"json\") or {}\n    date, kind = str(row.get(\"Tanggal\") or \"\")[:10], str(row.get(\"Jenis\") or \"\").strip()\n    amount = parse_amount(row.get(\"Nominal\"))\n    if date == yesterday and amount is not None and kind in (\"Pemasukan\", \"Pengeluaran\"):\n        rows.append({\"tanggal\": date, \"jenis\": kind, \"kategori\": str(row.get(\"Kategori\") or \"\").strip() or \"Lainnya\", \"nominal\": amount, \"keterangan\": re.sub(r\"\\s+\", \" \", str(row.get(\"Keterangan\") or \"\")).strip()[:60]})\ndef money(value): return \"Rp\" + f\"{value:,}\".replace(\",\", \".\")\nmonth_names = [\"Januari\", \"Februari\", \"Maret\", \"April\", \"Mei\", \"Juni\", \"Juli\", \"Agustus\", \"September\", \"Oktober\", \"November\", \"Desember\"]\nparsed_yesterday = datetime.strptime(yesterday, \"%Y-%m-%d\")\nlabel = f\"{parsed_yesterday.day:02d} {month_names[parsed_yesterday.month - 1]} {parsed_yesterday.year}\"\nif not rows: return [{\"json\": {\"output\": f\"Rekap {label}\\nBelum ada transaksi kemarin.\"}}]\nincome = sum(r[\"nominal\"] for r in rows if r[\"jenis\"] == \"Pemasukan\")\nexpense = sum(r[\"nominal\"] for r in rows if r[\"jenis\"] == \"Pengeluaran\")\ncategories = {}\nfor row in rows:\n    if row[\"jenis\"] == \"Pengeluaran\": categories[row[\"kategori\"]] = categories.get(row[\"kategori\"], 0) + row[\"nominal\"]\ndetail = [f\"• {r['jenis']} {money(r['nominal'])} · {r['keterangan']}\" for r in rows]\ncategory_lines = [f\"• {k} {money(v)}\" for k, v in sorted(categories.items(), key=lambda x: x[1], reverse=True)]\nnet = income - expense\noutput = \"\\n\".join([f\"Rekap {label}\", f\"{len(rows)} transaksi\", f\"Pemasukan {money(income)}\", f\"Pengeluaran {money(expense)}\", f\"Selisih {'-Rp' if net < 0 else 'Rp'}{abs(net):,}\".replace(\",\", \".\"), \"\", \"Per kategori:\", \"\\n\".join(category_lines) if category_lines else \"Tidak ada pengeluaran.\", \"\", \"Detail:\", \"\\n\".join(detail)])\nreturn [{\"json\": {\"output\": output}}]\n"
+      },
+      "id": "c844a69f-f95c-4704-9942-b036e439c32d",
+      "name": "Susun Rekap Pagi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -592
+      ],
+      "notes": "Menghitung transaksi kemarin, bukan AI."
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ String($json.output).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "d44ef647-13cc-4ff6-89d7-d011522d98e9",
+      "name": "Kirim Rekap Pagi",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -592
+      ],
+      "webhookId": "77ad06e3-1adc-4ec5-9aea-aa15a8317b91",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Chat tujuan rekap pagi. Ganti chatId kalau kamu pindah akun Telegram."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 19 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "14de8540-c5a7-40a9-84d1-85c1deaa5fa0",
+      "name": "Jadwal Mingguan",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -400
+      ],
+      "notes": "Minggu 19.00 WIB, merangkum pekan Senin-Minggu."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id as \"ID_Transaksi\",\n       occurred_at::text as \"Tanggal\",\n       kind as \"Jenis\",\n       category as \"Kategori\",\n       amount::float8 as \"Nominal\",\n       note as \"Keterangan\",\n       account_id as \"Dompet\"\nfrom public.transactions\nwhere deleted_at is null\norder by occurred_at desc, id desc",
+        "options": {}
+      },
+      "id": "9cf39852-67a8-454f-ba11-ecb980d09a34",
+      "name": "Baca Data Mingguan",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        -400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Semua transaksi untuk laporan mingguan."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime, timezone, timedelta\n\ndef parse_amount(value):\n    if isinstance(value, bool): return None\n    if isinstance(value, int): return value\n    digits = re.sub(r\"[^\\d]\", \"\", str(value or \"\"))\n    try: return int(digits) if digits else None\n    except ValueError: return None\ntoday = (datetime.now(timezone.utc) + timedelta(hours=7)).date()\nstart = today - timedelta(days=today.weekday())\nend = start + timedelta(days=6)\nprev_start, prev_end = start - timedelta(days=7), start - timedelta(days=1)\nrows = []\nfor item in _items:\n    row = item.get(\"json\") or {}\n    date, kind = str(row.get(\"Tanggal\") or \"\")[:10], str(row.get(\"Jenis\") or \"\").strip()\n    amount = parse_amount(row.get(\"Nominal\"))\n    if amount is not None and kind in (\"Pemasukan\", \"Pengeluaran\"):\n        try: parsed_date = datetime.strptime(date, \"%Y-%m-%d\").date()\n        except ValueError: continue\n        rows.append({\"tanggal\": parsed_date, \"jenis\": kind, \"kategori\": str(row.get(\"Kategori\") or \"\").strip() or \"Lainnya\", \"nominal\": amount, \"keterangan\": re.sub(r\"\\s+\", \" \", str(row.get(\"Keterangan\") or \"\")).strip()[:60]})\ncurrent = [r for r in rows if start <= r[\"tanggal\"] <= end]\nprevious = [r for r in rows if prev_start <= r[\"tanggal\"] <= prev_end]\ndef money(value): return \"Rp\" + f\"{abs(value):,}\".replace(\",\", \".\")\nshort_months = [\"Jan\", \"Feb\", \"Mar\", \"Apr\", \"Mei\", \"Jun\", \"Jul\", \"Agu\", \"Sep\", \"Okt\", \"Nov\", \"Des\"]\ndef label(value): return f\"{value.day:02d} {short_months[value.month - 1]}\"\nif not current: return [{\"json\": {\"output\": f\"Laporan mingguan {label(start)} - {label(end)}\\nBelum ada transaksi pekan ini.\"}}]\nincome = sum(r[\"nominal\"] for r in current if r[\"jenis\"] == \"Pemasukan\")\nexpense = sum(r[\"nominal\"] for r in current if r[\"jenis\"] == \"Pengeluaran\")\nprev_expense = sum(r[\"nominal\"] for r in previous if r[\"jenis\"] == \"Pengeluaran\")\ncategories = {}\nfor row in current:\n    if row[\"jenis\"] == \"Pengeluaran\": categories[row[\"kategori\"]] = categories.get(row[\"kategori\"], 0) + row[\"nominal\"]\nordered = sorted(categories.items(), key=lambda x: x[1], reverse=True)\ntop = ordered[0] if ordered else None\ncategory_lines = [f\"• {name} {money(amount)} ({round(amount / expense * 100) if expense else 0}%)\" for name, amount in ordered[:3]]\nnet = income - expense\ncomparison = \"\"\nif prev_expense > 0:\n    diff = round((expense - prev_expense) / prev_expense * 100)\n    comparison = f\"\\nDibanding pekan lalu: {'naik' if diff >= 0 else 'turun'} {abs(diff)}%\"\noutput = \"\\n\".join(filter(bool, [f\"Laporan mingguan {label(start)} - {label(end)}\", f\"{len(current)} transaksi\", f\"Pemasukan {money(income)}\", f\"Pengeluaran {money(expense)}\", f\"Selisih {'-Rp' if net < 0 else 'Rp'}{abs(net):,}\".replace(\",\", \".\"), comparison.strip(), \"\", f\"Kategori terbesar: {top[0]} {money(top[1])}\" if top else \"Kategori terbesar: belum ada pengeluaran\", \"\\n\".join(category_lines), \"\", f\"Rata-rata pengeluaran harian: {money(round(expense/7))}\"]))\nreturn [{\"json\": {\"output\": output}}]\n"
+      },
+      "id": "35e65b96-67cc-4420-8039-be8cf5deef49",
+      "name": "Susun Laporan Mingguan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -400
+      ],
+      "notes": "Menghitung pekan berjalan dan pembanding pekan lalu."
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ String($json.output).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "915d34f7-7a9b-42e1-8ed2-e69e8c91b570",
+      "name": "Kirim Laporan Mingguan",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -400
+      ],
+      "webhookId": "d03d53fb-63d7-40fb-b008-5ed54e4f445c",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Chat tujuan laporan mingguan."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "id": "61e92349-e0c9-4c06-860f-045093762450",
+      "name": "Jadwal Rutin",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -208
+      ],
+      "notes": "Setiap 06.00 WIB, mencatat transaksi rutin yang jatuh tempo hari itu."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select public.jalankan_recurring() as output",
+        "options": {}
+      },
+      "id": "cd523618-2633-43d3-be37-5c39bb4eb276",
+      "name": "Jalankan Rutin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        448,
+        -208
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Memasukkan transaksi rutin yang jatuh tempo dan menandai sudah jalan hari ini."
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ String($json.output).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "5e2fe32c-b6b3-432d-8eda-e77d36c50429",
+      "name": "Kirim Rutin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -208
+      ],
+      "webhookId": "bfea2927-801a-4509-8ed3-8b6f85030e20",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Chat tujuan notifikasi transaksi rutin."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "id": "1681e9a2-2537-4b76-8e29-cef8b1064299",
+      "name": "Jadwal Pengingat",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        -16
+      ],
+      "notes": "Memeriksa pengingat setiap 5 menit."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * from public.ingatkan_ambil()",
+        "options": {}
+      },
+      "id": "3f2b4afc-839b-4021-8d4a-9cb592fb987c",
+      "name": "Ambil Pengingat",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        448,
+        -16
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Mengambil pengingat yang sudah waktunya (atomik, tidak dobel)."
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ (\"⏰ \" + String($json.teks)).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "ab64dc45-390c-4aa9-90fa-fb278e411192",
+      "name": "Kirim Pengingat",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -16
+      ],
+      "webhookId": "112652dc-c737-4978-a1d4-5122a53d8f7d",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Mengirim pengingat ke Telegram."
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst esc = (v) => v === null || v === undefined ? 'null' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst workflowName = \"Expense Tracker - Jadwal\";\nreturn $input.all().map((item) => {\n  const m = (item && item.json) || {};\n  const p = m.result && typeof m.result === 'object' ? m.result : m;\n  const chatId = p.chat && p.chat.id ? p.chat.id : null;\n  const messageId = p.message_id === undefined ? null : p.message_id;\n  const text = p.text === undefined ? '' : p.text;\n  const executionId = $execution && $execution.id ? $execution.id : '';\n  const sql = \"insert into public.conversation_logs (chat_id, message_id, direction, kind, text, intent, workflow, execution_id) values (\" + (chatId === null ? \"null\" : chatId) + \", \" + (messageId === null ? \"null\" : messageId) + \", 'out', 'text', \" + esc(text) + \", null, \" + esc(workflowName) + \", \" + esc(executionId) + \")\";\n  return { json: { sql } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -304
+      ],
+      "id": "5a2977fe-b19c-4d18-8f75-59db7fb9266a",
+      "name": "Log Keluar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        -304
+      ],
+      "id": "ca071f4c-0c89-45c3-afa0-be356bc9501d",
+      "name": "Simpan Log Keluar",
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "b1000000-0000-4000-8000-000000000001",
+      "name": "Manual Email",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "b1000000-0000-4000-8000-000000000002",
+      "name": "Jadwal Email Bulanan",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        208
+      ],
+      "notes": "Tanggal 1 pukul 07.00 WIB."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select\n  t.id as id,\n  t.occurred_at::date::text as tanggal,\n  t.kind as jenis,\n  t.category as kategori,\n  coalesce(t.note, '') as catatan,\n  coalesce(a.name, t.account_id) as dompet_asal,\n  coalesce(b.name, t.to_account_id, '') as dompet_tujuan,\n  t.amount::float8 as nominal\nfrom public.transactions t\nleft join public.accounts a on a.id = t.account_id\nleft join public.accounts b on b.id = t.to_account_id\nwhere t.deleted_at is null\n  and t.occurred_at >= (date_trunc('month', (now() at time zone 'Asia/Jakarta')) - interval '1 month')::date\n  and t.occurred_at < (date_trunc('month', (now() at time zone 'Asia/Jakarta')))::date\norder by t.occurred_at, t.id;",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000003",
+      "name": "Baca Data Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        224,
+        304
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Transaksi aktif bulan kalender sebelumnya (WIB)."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "\nimport csv\nimport io\nfrom datetime import datetime, timedelta, timezone\n\nrows = []\nfor item in _items:\n    row = item.get(\"json\") or {}\n    if row.get(\"id\"):\n        rows.append(row)\n\nnow = datetime.now(timezone.utc) + timedelta(hours=7)\nfirst_this_month = now.date().replace(day=1)\nprevious_last_day = first_this_month - timedelta(days=1)\nprevious_first_day = previous_last_day.replace(day=1)\nmonth_key = previous_first_day.strftime(\"%Y-%m\")\nmonth_names = [\"Januari\", \"Februari\", \"Maret\", \"April\", \"Mei\", \"Juni\",\n               \"Juli\", \"Agustus\", \"September\", \"Oktober\", \"November\", \"Desember\"]\nmonth_label = f\"{month_names[previous_first_day.month - 1]} {previous_first_day.year}\"\n\ndef amount_of(value):\n    try:\n        return int(round(float(value)))\n    except (TypeError, ValueError):\n        return 0\n\ndef money(value):\n    return \"Rp\" + f\"{value:,}\".replace(\",\", \".\")\n\nbuffer = io.StringIO()\nwriter = csv.writer(buffer, lineterminator=\"\\r\\n\")\nwriter.writerow([\"ID\", \"Tanggal\", \"Jenis\", \"Kategori\", \"Catatan\", \"Dompet Asal\", \"Dompet Tujuan\", \"Nominal\"])\n\nincome = 0\nexpense = 0\nfor row in rows:\n    nominal = amount_of(row.get(\"nominal\"))\n    writer.writerow([\n        row.get(\"id\") or \"\",\n        str(row.get(\"tanggal\") or \"\")[:10],\n        row.get(\"jenis\") or \"\",\n        row.get(\"kategori\") or \"\",\n        row.get(\"catatan\") or \"\",\n        row.get(\"dompet_asal\") or \"\",\n        row.get(\"dompet_tujuan\") or \"\",\n        nominal,\n    ])\n    if row.get(\"jenis\") == \"Pemasukan\":\n        income += nominal\n    elif row.get(\"jenis\") == \"Pengeluaran\":\n        expense += nominal\n\ncsv_text = buffer.getvalue()\nbody = \"\\n\".join([\n    \"Halo,\",\n    \"\",\n    f\"Rekap Pundaria {month_label}:\",\n    f\"- Pemasukan: {money(income)}\",\n    f\"- Pengeluaran: {money(expense)}\",\n    f\"- Arus kas: {money(income - expense)}\",\n    f\"- Transaksi: {len(rows)}\",\n    \"\",\n    f\"CSV transaksi bulan {month_label} terlampir.\" if rows else \"Tidak ada transaksi pada bulan ini.\",\n    \"\",\n    \"Pundaria\",\n])\n\nreturn [{\"json\": {\n    \"bulan\": month_label,\n    \"bulanKey\": month_key,\n    \"body\": body,\n    \"csv\": csv_text,\n}}]\n"
+      },
+      "id": "b1000000-0000-4000-8000-000000000004",
+      "name": "Susun CSV Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "Pundaria <YOUR_EMAIL@gmail.com>",
+        "toEmail": "YOUR_EMAIL@gmail.com",
+        "subject": "=Rekap Pundaria — {{ $('Susun CSV Email').first().json.bulan }}",
+        "emailFormat": "text",
+        "text": "={{ $('Susun CSV Email').first().json.body }}",
+        "options": {
+          "appendAttribution": false,
+          "fileAttachments": "data"
+        }
+      },
+      "id": "b1000000-0000-4000-8000-000000000005",
+      "name": "Kirim Email Rekap",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        304
+      ],
+      "webhookId": "d72a76b7-5971-4969-9ddb-093c0bc8d449",
+      "credentials": {
+        "smtp": {
+          "id": "AFG5lBMalwAZJxgG",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "csv",
+        "options": {
+          "addBOM": true,
+          "encoding": "utf8",
+          "fileName": "=pundaria-rekap-{{ $json.bulanKey }}.csv"
+        }
+      },
+      "id": "b1000000-0000-4000-8000-000000000006",
+      "name": "Buat File CSV",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        304
+      ]
+    }
+  ],
+  "connections": {
+    "Jadwal Mingguan": {
+      "main": [
+        [
+          {
+            "node": "Baca Data Mingguan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jalankan Rutin": {
+      "main": [
+        [
+          {
+            "node": "Kirim Rutin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Jadwal Rutin": {
+      "main": [
+        [
+          {
+            "node": "Jalankan Rutin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jadwal Pengingat": {
+      "main": [
+        [
+          {
+            "node": "Ambil Pengingat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Pengingat": {
+      "main": [
+        [
+          {
+            "node": "Kirim Pengingat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Data Mingguan": {
+      "main": [
+        [
+          {
+            "node": "Susun Laporan Mingguan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Susun Laporan Mingguan": {
+      "main": [
+        [
+          {
+            "node": "Kirim Laporan Mingguan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jadwal Pagi": {
+      "main": [
+        [
+          {
+            "node": "Baca Data Pagi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Data Pagi": {
+      "main": [
+        [
+          {
+            "node": "Susun Rekap Pagi",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Susun Rekap Pagi": {
+      "main": [
+        [
+          {
+            "node": "Kirim Rekap Pagi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Keluar": {
+      "main": [
+        [
+          {
+            "node": "Simpan Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Rekap Pagi": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Laporan Mingguan": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Rutin": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Pengingat": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Email": {
+      "main": [
+        [
+          {
+            "node": "Baca Data Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jadwal Email Bulanan": {
+      "main": [
+        [
+          {
+            "node": "Baca Data Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Data Email": {
+      "main": [
+        [
+          {
+            "node": "Susun CSV Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun CSV Email": {
+      "main": [
+        [
+          {
+            "node": "Buat File CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buat File CSV": {
+      "main": [
+        [
+          {
+            "node": "Kirim Email Rekap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Asia/Jakarta"
+  },
+  "staticData": {
+    "node:Jadwal Pagi": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "node:Jadwal Mingguan": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "node:Jadwal Rutin": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "node:Jadwal Pengingat": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    },
+    "node:Jadwal Email Bulanan": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    }
+  },
+  "meta": {},
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "a8ec1cb1-75dc-4401-987b-98b0d38dfa26",
+  "activeVersionId": "a8ec1cb1-75dc-4401-987b-98b0d38dfa26",
+  "versionCounter": 10,
+  "triggerCount": 5,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-18T10:07:33.662Z",
+      "createdAt": "2026-11-18T10:07:33.662Z",
+      "role": "workflow:owner",
+      "workflowId": "taY2Mfnu26k8uGMo",
+      "projectId": "KGK26AcBupFwHjjf",
+      "project": {
+        "updatedAt": "2026-11-16T09:28:02.906Z",
+        "createdAt": "2026-11-16T09:22:39.425Z",
+        "id": "KGK26AcBupFwHjjf",
+        "name": "Pundaria Admin <admin@example.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "b19da6bd-5a13-4906-8cc1-74358ce20c41"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version a8ec1cb1",
+    "description": ""
+  }
+}

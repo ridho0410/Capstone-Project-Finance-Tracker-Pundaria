@@ -1,0 +1,14 @@
+services:
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      NODE_ENV: production
+    networks:
+      - default
+    mem_limit: 512m

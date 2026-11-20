@@ -1,0 +1,512 @@
+{
+  "updatedAt": "2026-11-18T16:49:24.229Z",
+  "createdAt": "2026-11-18T10:23:03.969Z",
+  "id": "zyDgRlsUUiHneAuD",
+  "name": "Expense Tracker - Router",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "chatIds": "YOUR_TELEGRAM_CHAT_ID"
+        }
+      },
+      "id": "1a8b67a1-9896-4431-8f46-10c808b0f350",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -1184,
+        304
+      ],
+      "webhookId": "00080e30-be54-487c-82dc-77b8cac70347",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Ganti Restrict to Chat IDs dari 0 ke ID numerik chat pribadi Anda sebelum publish. WEBHOOK_URL Telegram harus publik dan menggunakan HTTPS."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime, timezone, timedelta\n\nfrom datetime import datetime, timezone, timedelta\nitems = _items\nmessage = ((items[0].get(\"json\") or {}).get(\"message\") or {}) if items else {}\nif (message.get(\"chat\") or {}).get(\"type\") != \"private\" or isinstance(message.get(\"message_id\"), bool) or not isinstance(message.get(\"message_id\"), int) or isinstance(message.get(\"date\"), bool) or not isinstance(message.get(\"date\"), int):\n    return []\ntext = str(message.get(\"text\") or \"\").strip()\nperintah = text.startswith(\"/\")\nreceived = datetime.fromtimestamp(message[\"date\"] + 7 * 3600, timezone.utc).strftime(\"%Y-%m-%d %H:%M:%S\")\nmatch = re.fullmatch(r\"/rekap(?:@\\w+)?(?:\\s+([1-9]\\d{3}-(?:0[1-9]|1[0-2])))?\", text, re.I)\nphoto_list = message.get(\"photo\") if isinstance(message.get(\"photo\"), list) else []\nphoto = photo_list[-1] if photo_list else None\nvoice = message.get(\"voice\") or message.get(\"audio\")\nberbahaya = re.search(r\"drop\\s+table|truncate|delete\\s+from|insert\\s+into|alter\\s+table|update\\s+\\w+\\s+set|hapus\\s+(?:database|semua\\s+data|seluruh\\s+data|semua\\s+transaksi|seluruh\\s+transaksi)|reset\\s+data|kosongkan\\s+(?:database|tabel)|password|api[\\s_-]?key|token(?!\\s+(?:listrik|pln|pulsa|hp|kuota))|credential|system\\s+prompt|ignore\\s+(?:all\\s+)?previous|rm\\s+-rf|/etc/passwd|\\bsudo\\b\", text, re.I) is not None\nroute = \"Tolak\" if berbahaya else \"Bantuan\" if message.get(\"media_group_id\") else \"Rekap\" if match else \"Foto\" if isinstance(photo, dict) and photo.get(\"file_id\") else \"Suara\" if isinstance(voice, dict) and voice.get(\"file_id\") else \"Perintah\" if perintah else \"Teks\" if text else \"Bantuan\"\nbantuan = \"\\n\".join([\"Mencatat: ketik, kirim foto struk, atau kirim pesan suara.\", \"\", \"Perintah:\", \"/rekap — rekap bulan ini\", \"/saldo — saldo tiap dompet\", \"/dompet - daftar / tambah dompet\", \"/anggaran — pemakaian dan sisa anggaran\", \"/pindah 100000 BCA GoPay — pindah dana\", \"/hapus OUT-0001 — hapus transaksi tertentu\", \"/undo — batalkan transaksi terakhir\", \"/rutin — kelola transaksi rutin\", \"/ingatkan — pengingat waktu\"])\nreturn [{\"json\": {\"route\": route, \"text\": text, \"chatId\": (message.get(\"chat\") or {}).get(\"id\"), \"messageId\": message[\"message_id\"], \"received\": received, \"bulan\": match.group(1) if match and match.group(1) else received[:7], \"caption\": str(message.get(\"caption\") or \"\")[:1024], \"fileId\": (photo or {}).get(\"file_id\", \"\"), \"voiceFileId\": (voice or {}).get(\"file_id\", \"\"), \"output\": \"Silakan hanya berikan informasi terkait transaksi keuangan. Permintaan tersebut tidak dapat saya proses.\" if route == \"Tolak\" else (\"Kirim foto struk satu per satu agar tiap pembayaran tercatat sekali.\" if message.get(\"media_group_id\") else bantuan)}}]\n"
+      },
+      "id": "e0e089fb-a6e1-4b2a-be6e-bd3d65f991e9",
+      "name": "Normalisasi Pesan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        304
+      ],
+      "notes": "Rute Teks/Foto/Suara/Rekap/Bantuan + message_id untuk idempotensi di database."
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "057c2808-4388-436a-873c-6f151dbaf023",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Teks",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Teks"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dfe08a72-b74f-43f5-96bc-1fd6e3117795",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Suara",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Suara"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d38b0271-09fe-4d52-94c6-f00fdff83062",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Foto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Foto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "52ebd0d7-c65c-45a7-845e-647f00d02fc1",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Rekap",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rekap"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f89c1381-0a6d-4c7d-961e-15b9cb0bee1b",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Perintah",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Perintah"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "tolak-rule-1",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Tolak",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tolak"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Bantuan"
+        }
+      },
+      "id": "b3a2daa2-b2f3-49ca-882e-15ee8e939219",
+      "name": "Pilih Jenis Pesan",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -736,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ String($(\"Telegram Trigger\").first().json.message.chat.id) }}",
+        "text": "={{ String($json.output).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "b4b45501-f74c-4d5d-af45-edce38f33b2c",
+      "name": "Balas - Bantuan",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -512,
+        304
+      ],
+      "webhookId": "d9806675-105c-4a24-8c12-92623be9f0e4",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Balasan untuk pesan Tolak/Bantuan dari routing awal."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "fpfKoNTpvhXvOftJ",
+          "mode": "list",
+          "cachedResultName": "Expense Tracker - Pemrosesan"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        -512,
+        -80
+      ],
+      "id": "31ee3a5b-a910-4210-b6ac-ac578376398c",
+      "name": "Pemrosesan",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "jQXTG54sIzYmiooY",
+          "mode": "list",
+          "cachedResultName": "Expense Tracker - Perintah"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        -512,
+        112
+      ],
+      "id": "18dc9b88-e6a1-45da-84eb-705f68858080",
+      "name": "Perintah",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst esc = (v) => v === null || v === undefined ? 'null' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst workflowName = \"Expense Tracker - Router\";\nreturn $input.all().map((item) => {\n  const m = (item && item.json) || {};\n  const p = m.result && typeof m.result === 'object' ? m.result : m;\n  const chatId = p.chat && p.chat.id ? p.chat.id : null;\n  const messageId = p.message_id === undefined ? null : p.message_id;\n  const text = p.text === undefined ? '' : p.text;\n  const executionId = $execution && $execution.id ? $execution.id : '';\n  const sql = \"insert into public.conversation_logs (chat_id, message_id, direction, kind, text, intent, workflow, execution_id) values (\" + (chatId === null ? \"null\" : chatId) + \", \" + (messageId === null ? \"null\" : messageId) + \", 'out', 'text', \" + esc(text) + \", null, \" + esc(workflowName) + \", \" + esc(executionId) + \")\";\n  return { json: { sql } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        304
+      ],
+      "id": "6c13d844-a65f-48ce-a873-824967fdfb0c",
+      "name": "Log Keluar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -64,
+        304
+      ],
+      "id": "c6c32d48-07e6-4d37-bbc1-06aac7659f7f",
+      "name": "Simpan Log Keluar",
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst esc = (v) => v === null || v === undefined ? 'null' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst workflowName = \"Expense Tracker - Router\";\nreturn $input.all().map((item) => {\n  const m = (item && item.json) || {};\n  const chatId = m.chatId === undefined ? null : m.chatId;\n  const messageId = m.messageId === undefined ? null : m.messageId;\n  const text = m.text || m.caption || '';\n  const kind = m.route || 'text';\n  const executionId = $execution && $execution.id ? $execution.id : '';\n  const sql = \"insert into public.conversation_logs (chat_id, message_id, direction, kind, text, intent, workflow, execution_id) values (\" + (chatId === null ? \"null\" : chatId) + \", \" + (messageId === null ? \"null\" : messageId) + \", 'in', \" + esc(kind) + \", \" + esc(text) + \", \" + esc(kind) + \", \" + esc(workflowName) + \", \" + esc(executionId) + \")\";\n  return { json: { sql } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        496
+      ],
+      "id": "32aa138f-55b7-4c43-8f5a-fc2644e73164",
+      "name": "Log Masuk"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        -512,
+        496
+      ],
+      "id": "226b9e70-59ba-4262-830a-6d27dda748de",
+      "name": "Simpan Log Masuk",
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalisasi Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalisasi Pesan": {
+      "main": [
+        [
+          {
+            "node": "Pilih Jenis Pesan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Masuk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pilih Jenis Pesan": {
+      "main": [
+        [
+          {
+            "node": "Pemrosesan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pemrosesan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Pemrosesan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas - Bantuan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balas - Bantuan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Keluar": {
+      "main": [
+        [
+          {
+            "node": "Simpan Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Balas - Bantuan": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Masuk": {
+      "main": [
+        [
+          {
+            "node": "Simpan Log Masuk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {},
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "ed9b4e99-d41c-452c-af52-77c0af4cd58b",
+  "activeVersionId": "ed9b4e99-d41c-452c-af52-77c0af4cd58b",
+  "versionCounter": 25,
+  "triggerCount": 1,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-18T10:23:03.969Z",
+      "createdAt": "2026-11-18T10:23:03.969Z",
+      "role": "workflow:owner",
+      "workflowId": "zyDgRlsUUiHneAuD",
+      "projectId": "KGK26AcBupFwHjjf",
+      "project": {
+        "updatedAt": "2026-11-16T09:28:02.906Z",
+        "createdAt": "2026-11-16T09:22:39.425Z",
+        "id": "KGK26AcBupFwHjjf",
+        "name": "Pundaria Admin <admin@example.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "b19da6bd-5a13-4906-8cc1-74358ce20c41"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 20bd848c",
+    "description": ""
+  }
+}

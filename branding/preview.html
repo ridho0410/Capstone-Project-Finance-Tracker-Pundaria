@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pundaria — 3 arah logo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070b11;
+      --panel: #0d141d;
+      --line: #1e2a38;
+      --mint: #34d399;
+      --sky: #38bdf8;
+      --gold: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #8593a6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 56px 32px 72px;
+      background:
+        radial-gradient(900px 500px at 12% -10%, rgba(52,211,153,.10), transparent 60%),
+        radial-gradient(700px 400px at 100% 0%, rgba(56,189,248,.08), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    header { max-width: 1180px; margin: 0 auto 36px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--mint); font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--mint); box-shadow: 0 0 18px var(--mint); }
+    h1 { margin: 14px 0 8px; font-size: clamp(28px, 4vw, 44px); letter-spacing: -.04em; }
+    .sub { margin: 0; color: var(--muted); max-width: 700px; line-height: 1.6; }
+    .grid {
+      max-width: 1180px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      padding: 18px;
+      box-shadow: 0 30px 80px -60px #000;
+    }
+    .art {
+      border-radius: 22px; overflow: hidden; background: #0a1119;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .art img { display: block; width: 100%; height: auto; }
+    .meta { padding: 16px 4px 4px; }
+    .meta h2 { margin: 0 0 6px; font-size: 16px; letter-spacing: -.01em; }
+    .meta p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+    .chip {
+      font-size: 11px; color: #a9b8c9; border: 1px solid var(--line);
+      background: rgba(255,255,255,.03); padding: 4px 8px; border-radius: 999px;
+    }
+    .wordmark {
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
+      display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    }
+    .wordmark strong { font-size: 20px; letter-spacing: -.04em; }
+    .wordmark span { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+    .footer { max-width: 1180px; margin: 28px auto 0; color: #5e6c7e; font-size: 12px; }
+    @media (max-width: 640px) { body { padding: 36px 18px 56px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow"><span class="dot"></span> Pundaria · Brand direction</div>
+    <h1>Tiga arah logo dompet.</h1>
+    <p class="sub">
+      Semua versi dibuat sebagai SVG vektor — tajam di favicon, dashboard, maupun banner.
+      Pilih satu arah, lalu saya rapikan wordmark dan varian gelap/terangnya.
+    </p>
+  </header>
+
+  <main class="grid">
+    <article class="card">
+      <div class="art"><img src="pundaria-logo-1.svg" alt="Pundaria logo 1 - minimal wallet" /></div>
+      <div class="meta">
+        <h2>1. Minimal Wallet</h2>
+        <p>Dompet rounded dengan kartu dan koin, mint–sky di atas navy. Paling dekat dengan nuansa dashboard sekarang.</p>
+        <div class="chips"><span class="chip">app icon</span><span class="chip">dark</span><span class="chip">friendly fintech</span></div>
+      </div>
+      <div class="wordmark"><strong>Pundaria</strong><span>asisten keuangan</span></div>
+    </article>
+
+    <article class="card">
+      <div class="art"><img src="pundaria-logo-2.svg" alt="Pundaria logo 2 - geometric P wallet" /></div>
+      <div class="meta">
+        <h2>2. Geometric P</h2>
+        <p>Monogram P negatif di badan dompet, gradien mint–sky dan koin emas. Kesan premium dan mudah diingat.</p>
+        <div class="chips"><span class="chip">monogram</span><span class="chip">premium</span><span class="chip">scalable</span></div>
+      </div>
+      <div class="wordmark"><strong>Pundaria</strong><span>personal finance</span></div>
+    </article>
+
+    <article class="card">
+      <div class="art"><img src="pundaria-logo-3.svg" alt="Pundaria logo 3 - warm pouch" /></div>
+      <div class="meta">
+        <h2>3. Warm Pundi</h2>
+        <p>Pundi/pouch organik dengan daun dan koin, emerald–amber di latar cream. Paling personal dan ramah.</p>
+        <div class="chips"><span class="chip">warm</span><span class="chip">approachable</span><span class="chip">local feel</span></div>
+      </div>
+      <div class="wordmark"><strong>Pundaria</strong><span>asisten keuangan</span></div>
+    </article>
+  </main>
+
+  <p class="footer">File SVG: <code>branding/pundaria-logo-1.svg</code>, <code>-2.svg</code>, <code>-3.svg</code>.</p>
+</body>
+</html>

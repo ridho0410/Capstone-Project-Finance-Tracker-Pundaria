@@ -1,0 +1,182 @@
+{
+  "updatedAt": "2026-11-18T16:49:43.697Z",
+  "createdAt": "2026-11-17T08:11:42.509Z",
+  "id": "mjYQzvv9l8oWcbvD",
+  "name": "Error Handler - Finance",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "94efc7f8-8777-4313-beba-f7c66041d506",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Dipanggil otomatis oleh n8n ketika ada eksekusi yang gagal."
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json || {};\nconst alur = d.workflow && d.workflow.name ? d.workflow.name : '(tanpa nama)';\nconst ex = d.execution || {};\nconst err = ex.error || {};\nconst pesanError = String(err.message || 'tanpa pesan error').replace(/\\s+/g, ' ').trim().slice(0, 300);\nconst node = String(ex.lastNodeExecuted || (err.node && err.node.name) || '-').trim();\nconst eksekusi = String(ex.id || '-');\nconst waktu = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');\nconst baris = [\n  'Workflow gagal: ' + alur,\n  'Node: ' + node,\n  'Waktu: ' + waktu + ' WIB',\n  'Execution: ' + eksekusi,\n  '',\n  pesanError,\n];\nif (ex.url) baris.push('', String(ex.url));\nreturn [{ json: { output: baris.join('\\n') } }];"
+      },
+      "id": "89bf1092-0081-4e0b-b789-d3ec4ddd30f4",
+      "name": "Susun Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "notes": "Merangkum nama workflow, node yang gagal, dan pesan error aslinya."
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ String($json.output).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "1e9a5051-7159-4253-8b55-9a0eece7953e",
+      "name": "Kirim Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        0
+      ],
+      "webhookId": "8f83ae13-5d5b-4fdc-9568-9928af031c16",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst esc = (v) => v === null || v === undefined ? 'null' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst workflowName = \"Error Handler - Finance\";\nreturn $input.all().map((item) => {\n  const m = (item && item.json) || {};\n  const p = m.result && typeof m.result === 'object' ? m.result : m;\n  const chatId = p.chat && p.chat.id ? p.chat.id : null;\n  const messageId = p.message_id === undefined ? null : p.message_id;\n  const text = p.text === undefined ? '' : p.text;\n  const executionId = $execution && $execution.id ? $execution.id : '';\n  const sql = \"insert into public.conversation_logs (chat_id, message_id, direction, kind, text, intent, workflow, execution_id) values (\" + (chatId === null ? \"null\" : chatId) + \", \" + (messageId === null ? \"null\" : messageId) + \", 'out', 'text', \" + esc(text) + \", null, \" + esc(workflowName) + \", \" + esc(executionId) + \")\";\n  return { json: { sql } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "7571acd4-0d3c-4265-af03-5e64c32ef3a0",
+      "name": "Log Keluar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        896,
+        0
+      ],
+      "id": "b70a70a5-9b0e-49ec-9d2d-80bb702fcdd8",
+      "name": "Simpan Log Keluar",
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Susun Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Alert": {
+      "main": [
+        [
+          {
+            "node": "Kirim Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Keluar": {
+      "main": [
+        [
+          {
+            "node": "Simpan Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "staticData": null,
+  "meta": {},
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "0324d625-18b7-405e-836b-12f7334ec392",
+  "activeVersionId": "0324d625-18b7-405e-836b-12f7334ec392",
+  "versionCounter": 7,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-17T08:11:42.509Z",
+      "createdAt": "2026-11-17T08:11:42.509Z",
+      "role": "workflow:owner",
+      "workflowId": "mjYQzvv9l8oWcbvD",
+      "projectId": "KGK26AcBupFwHjjf",
+      "project": {
+        "updatedAt": "2026-11-16T09:28:02.906Z",
+        "createdAt": "2026-11-16T09:22:39.425Z",
+        "id": "KGK26AcBupFwHjjf",
+        "name": "Pundaria Admin <admin@example.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "b19da6bd-5a13-4906-8cc1-74358ce20c41"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 0324d625",
+    "description": ""
+  }
+}

@@ -1,0 +1,31 @@
+{$FINANCE_HOST} {
+  @telegram {
+    method POST
+    path /webhook/* /webhook-test/*
+  }
+  handle @telegram {
+    reverse_proxy n8n:5678
+  }
+  @trustedEditor {
+    remote_ip {$FINANCE_EDITOR_IP}
+  }
+  handle @trustedEditor {
+    reverse_proxy n8n:5678
+  }
+  handle {
+    respond 404
+  }
+}
+
+{$DASHBOARD_HOST} {
+  @dashTelegram {
+    method POST
+    path /webhook/* /webhook-test/*
+  }
+  handle @dashTelegram {
+    reverse_proxy n8n:5678
+  }
+  handle {
+    reverse_proxy dashboard:3000
+  }
+}

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Pundaria logo - warm pouch">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf6ea"/>
+      <stop offset="1" stop-color="#f1e7d2"/>
+    </linearGradient>
+    <linearGradient id="green3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="0.55" stop-color="#10b981"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="gold3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.5" stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="shadow3" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#6b4f2a" flood-opacity="0.25"/>
+    </filter>
+    <filter id="glow3" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg3)"/>
+  <circle cx="512" cy="540" r="300" fill="#34d399" opacity="0.14" filter="url(#glow3)"/>
+
+  <g filter="url(#shadow3)">
+    <path d="M300 474 Q300 394 390 382 H634 Q724 394 724 474 L700 740 Q690 802 620 802 H404 Q334 802 324 740 Z" fill="url(#green3)"/>
+    <path d="M300 474 Q300 394 390 382 H634 Q724 394 724 474" fill="none" stroke="#065f46" stroke-width="30" opacity="0.45"/>
+    <path d="M352 466 Q512 526 672 466" fill="none" stroke="#064e3b" stroke-width="22" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="512" cy="496" r="18" fill="#fbbf24"/>
+    <path d="M512 382 C520 302 580 282 620 302 C610 362 560 392 512 382Z" fill="#34d399" opacity="0.95"/>
+    <path d="M512 382 C500 342 470 322 440 332 C450 372 480 392 512 382Z" fill="#10b981" opacity="0.85"/>
+    <circle cx="694" cy="684" r="86" fill="url(#gold3)"/>
+    <circle cx="694" cy="684" r="62" fill="#fde68a" opacity="0.95"/>
+    <path d="M694 642l13 30 33 4-24 22 7 33-29-18-29 18 7-33-24-22 33-4z" fill="#92400e" opacity="0.85"/>
+    <path d="M372 528 Q382 474 432 454" stroke="#a7f3d0" stroke-width="18" stroke-linecap="round" opacity="0.55"/>
+    <path d="M334 726 Q350 770 400 784" stroke="#065f46" stroke-width="12" stroke-linecap="round" opacity="0.25"/>
+  </g>
+</svg>

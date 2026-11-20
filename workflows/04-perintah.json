@@ -1,0 +1,490 @@
+{
+  "updatedAt": "2026-11-18T16:49:55.728Z",
+  "createdAt": "2026-11-18T10:07:33.574Z",
+  "id": "jQXTG54sIzYmiooY",
+  "name": "Expense Tracker - Perintah",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -496,
+        -160
+      ],
+      "id": "7953bbfd-1e71-44ac-b243-6d0da7aa117e",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "06c9afbc-9073-4f9f-8e6b-1741d7ea0963",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Rekap",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Rekap"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "09e26cc1-2165-47e2-b345-38c15bfd7919",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Perintah",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Perintah"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e4095e43-9220-4ff1-8a66-9c8163a15226",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "Ingatkan",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ingatkan"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -272,
+        -176
+      ],
+      "id": "76633b5e-9054-47a5-ae58-7b68909e4048",
+      "name": "Rute Perintah"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id as \"ID_Transaksi\",\n       occurred_at::text as \"Tanggal\",\n       kind as \"Jenis\",\n       category as \"Kategori\",\n       amount::float8 as \"Nominal\",\n       note as \"Keterangan\",\n       account_id as \"Dompet\"\nfrom public.transactions\nwhere deleted_at is null\norder by occurred_at desc, id desc",
+        "options": {}
+      },
+      "id": "c0d93bba-9653-4979-bfe5-b4f8afbf1aa2",
+      "name": "Baca Transaksi Sheet",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        176,
+        -352
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Semua transaksi untuk /rekap."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1d324ab8-b275-4698-9578-8f1723b2a78c",
+              "name": "normal",
+              "value": "={{ $('Execute Workflow Trigger').first().json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "57927927-0618-41df-b6cc-41f183c97d18",
+      "name": "Konteks Python - Hitung Rekap Bulanan",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        400,
+        -352
+      ],
+      "notesInFlow": true,
+      "notes": "Menyediakan data lintas node untuk Code node Python Native."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime, timezone, timedelta\n\nmonth = (_items[0].get(\"json\") or {}).get(\"normal\", {}).get(\"bulan\", \"\") if _items else \"\"\ndef amount_of(value):\n    if isinstance(value, bool): return None\n    if isinstance(value, int): return value\n    digits = re.sub(r\"[^\\d]\", \"\", str(value or \"\"))\n    try: return int(digits) if digits else None\n    except ValueError: return None\nincome = expense = count = 0\nfor item in _items:\n    row = item.get(\"json\") or {}\n    if str(row.get(\"Tanggal\") or \"\")[:7] != month: continue\n    amount = amount_of(row.get(\"Nominal\"))\n    if amount is None or amount < 1: continue\n    if row.get(\"Jenis\") == \"Pemasukan\": income += amount\n    elif row.get(\"Jenis\") == \"Pengeluaran\": expense += amount\n    else: continue\n    count += 1\ndef money(value): return (\"-Rp\" if value < 0 else \"Rp\") + f\"{abs(value):,}\".replace(\",\", \".\")\nreturn [{\"json\": {\"output\": f\"Rekap {month} (WIB)\\n{count} transaksi\\nPemasukan {money(income)}\\nPengeluaran {money(expense)}\\nSelisih {money(income-expense)}\"}}]\n"
+      },
+      "id": "3e0d02a5-c073-4357-b53d-59ac2774272c",
+      "name": "Hitung Rekap Bulanan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -352
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e60cba66-be41-4ebc-bb5c-b6209e2561f6",
+              "name": "normal",
+              "value": "={{ $('Execute Workflow Trigger').first().json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "58392c3d-7f47-4641-97a8-e427bf1500b1",
+      "name": "Konteks Python - Siapkan Perintah",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -48,
+        -160
+      ],
+      "notesInFlow": true,
+      "notes": "Menyediakan data lintas node untuk Code node Python Native."
+    },
+    {
+      "parameters": {
+        "language": "pythonNative",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime, timezone, timedelta\n\nnormal = (_items[0].get(\"json\") or {}).get(\"normal\", {}) if _items else {}\ntext = str(normal.get(\"text\") or \"\").strip()\ndef quote(value): return \"'\" + str(value).replace(\"'\", \"''\") + \"'\"\nparts = re.split(r\"\\s+\", text)\ncommand = (parts.pop(0) if parts else \"\").lower()\ncommand = re.sub(r\"@\\w+$\", \"\", command)\narg = \" \".join(parts).strip()\ndef amount_of(value):\n    match = re.search(r\"(\\d+(?:[.,]\\d+)?)\\s*(jt|juta|rb|ribu|k)?\", value.lower())\n    if not match: return None\n    number = float(match.group(1).replace(\",\", \".\"))\n    unit = match.group(2) or \"\"\n    if unit in (\"jt\", \"juta\"): number *= 1_000_000\n    elif unit in (\"rb\", \"ribu\", \"k\"): number *= 1_000\n    return round(number)\nhelp_text = \"\\n\".join([\"Perintah yang tersedia:\", \"/rekap — rekap bulan ini\", \"/saldo — saldo tiap dompet\", \"/dompet - daftar / tambah dompet\", \"/anggaran — pemakaian dan sisa anggaran\", \"/pindah 100000 BCA GoPay — pindah dana antar dompet\", \"/hapus OUT-0001 — hapus transaksi tertentu\", \"/undo — batalkan transaksi terakhir\", \"/rutin — kelola transaksi rutin\", \"/ingatkan — pengingat waktu\"])\nif command == \"/undo\": sql = \"select public.undo_terakhir() as output\"\nelif command == \"/saldo\": sql = \"select public.saldo_text() as output\"\nelif command == \"/anggaran\":\n    tokens = arg.split()\n    sub = tokens[0].lower() if tokens else \"\"\n    if sub in (\"hapus\", \"delete\"):\n        nama = \" \".join(tokens[1:]).strip()\n        sql = \"select public.anggaran_hapus(\" + quote(nama) + \") as output\" if nama else \"select \" + quote(\"Format: /anggaran hapus makanan\") + \"::text as output\"\n    elif sub in (\"set\", \"isi\", \"atur\"):\n        tokens = tokens[1:]\n        nominal = amount_of(tokens[-1]) if len(tokens) >= 2 else None\n        nama = \" \".join(tokens[:-1]).strip() if len(tokens) >= 2 else \"\"\n        sql = \"select public.anggaran_set(\" + quote(nama) + \", \" + str(nominal) + \") as output\" if nama and nominal else \"select \" + quote(\"Format: /anggaran makanan 3000000\") + \"::text as output\"\n    elif len(tokens) >= 2 and amount_of(tokens[-1]) is not None:\n        nama = \" \".join(tokens[:-1]).strip()\n        sql = \"select public.anggaran_set(\" + quote(nama) + \", \" + str(amount_of(tokens[-1])) + \") as output\"\n    else:\n        sql = \"select public.anggaran_text() as output\"\nelif command == \"/hapus\":\n    if re.search(r\"\\bjangan\\b\", arg, re.I):\n        sql = \"select \" + quote(\"Oke, tidak menghapus apa pun.\") + \"::text as output\"\n    elif not arg:\n        sql = \"select \" + quote(\"Format: /hapus OUT-0001 atau /hapus beli kecap\") + \"::text as output\"\n    elif re.fullmatch(r\"(?i)(in|out)[- ]?\\d{1,6}\", arg.strip()):\n        kode_arg = re.sub(r\"(?i)^(in|out)[- ]?\", lambda m: m.group(1).upper() + \"-\", arg.strip())\n        sql = \"select public.hapus_transaksi(\" + quote(kode_arg) + \") as output\"\n    else:\n        sql = \"select public.hapus_cari(\" + quote(arg) + \") as output\"\nelif command == \"/pindah\":\n    clean = re.sub(r\"\\b(dari|ke)\\b\", \" \", arg, flags=re.I)\n    clean = re.sub(r\"\\s+\", \" \", clean).strip()\n    match = re.match(r\"^([\\d.,]+\\s*(?:jt|juta|rb|ribu|k)?)\\s+(\\S.*?)\\s+(\\S.*)$\", clean, re.I)\n    amount = amount_of(match.group(1)) if match else None\n    if not match or amount is None or amount < 1: sql = \"select \" + quote(\"Format: /pindah 100000 BCA GoPay\") + \"::text as output\"\n    else: sql = \"select public.pindah_dana(\" + str(amount) + \", \" + quote(match.group(2).strip()) + \", \" + quote(match.group(3).strip()) + \", \" + quote(\"\") + \", null) as output\"\nelif command == \"/rutin\":\n    tokens = arg.split()\n    sub = tokens.pop(0).lower() if tokens else \"\"\n    if sub in (\"\", \"daftar\", \"list\"):\n        sql = \"select public.rutin_daftar() as output\"\n    elif sub == \"hapus\":\n        nama = \" \".join(tokens).strip()\n        sql = \"select public.rutin_hapus(\" + quote(nama) + \") as output\" if nama else \"select \" + quote(\"Format: /rutin hapus listrik\") + \"::text as output\"\n    elif sub in (\"matikan\", \"nonaktif\", \"off\"):\n        nama = \" \".join(tokens).strip()\n        sql = \"select public.rutin_set(\" + quote(nama) + \", false) as output\" if nama else \"select \" + quote(\"Format: /rutin matikan listrik\") + \"::text as output\"\n    elif sub in (\"hidupkan\", \"aktifkan\", \"aktif\", \"on\"):\n        nama = \" \".join(tokens).strip()\n        sql = \"select public.rutin_set(\" + quote(nama) + \", true) as output\" if nama else \"select \" + quote(\"Format: /rutin hidupkan listrik\") + \"::text as output\"\n    elif sub == \"tambah\":\n        jenis = \"Pengeluaran\"\n        if tokens and tokens[-1].lower() in (\"masuk\", \"pemasukan\"):\n            jenis = \"Pemasukan\"\n            tokens = tokens[:-1]\n        nama = \" \".join(tokens[:-2]).strip() if len(tokens) >= 3 else \"\"\n        nominal = amount_of(tokens[-2]) if len(tokens) >= 3 else None\n        tanggal = int(tokens[-1]) if len(tokens) >= 3 and re.fullmatch(r\"\\d{1,2}\", tokens[-1]) else None\n        kategori = \"Gaji\" if jenis == \"Pemasukan\" else \"Tagihan\"\n        if not nama or nominal is None or tanggal is None:\n            sql = \"select \" + quote(\"Format: /rutin tambah listrik 350000 5\") + \"::text as output\"\n        else:\n            sql = \"select public.rutin_tambah(\" + quote(nama) + \", \" + str(nominal) + \", \" + str(tanggal) + \", \" + quote(jenis) + \", \" + quote(kategori) + \") as output\"\n    else:\n        sql = \"select \" + quote(\"Perintah rutin: /rutin · /rutin tambah listrik 350000 5 · /rutin hapus listrik · /rutin matikan listrik\") + \"::text as output\"\nelif command == \"/ingatkan\":\n    tokens = arg.split()\n    sub = tokens[0].lower() if tokens else \"\"\n    if not tokens:\n        sql = \"select public.ingatkan_daftar() as output\"\n    elif sub in (\"hapus\", \"delete\", \"stop\"):\n        sql = \"select public.ingatkan_hapus(\" + tokens[1] + \") as output\" if len(tokens) >= 2 and tokens[1].isdigit() else \"select \" + quote(\"Format: /ingatkan hapus 2\") + \"::text as output\"\n    else:\n        teks_sisa = arg.strip()\n        harian = False\n        tanggal_sql = None\n        nama_hari = {\"senin\": 1, \"selasa\": 2, \"rabu\": 3, \"kamis\": 4, \"jumat\": 5, \"sabtu\": 6, \"minggu\": 0}\n        m_harian = re.match(r\"^(harian|setiap|tiap)\\s+\", teks_sisa, re.I)\n        if m_harian:\n            harian = True\n            teks_sisa = teks_sisa[m_harian.end():]\n            m_penanda = re.match(r\"^(pagi|siang|sore|malam|petang|hari)\\s+\", teks_sisa, re.I)\n            if m_penanda: teks_sisa = teks_sisa[m_penanda.end():]\n        m_iso = re.match(r\"^([1-9]\\d{3}-\\d{2}-\\d{2})\\s+\", teks_sisa)\n        if m_iso:\n            tanggal_sql = quote(m_iso.group(1)) + \"::date\"\n            teks_sisa = teks_sisa[m_iso.end():]\n        m_tgl = re.match(r\"^(besok|esok|lusa|hari\\s+ini|hari\\s+(\\w+)|(\\w+))\\s+\", teks_sisa, re.I)\n        if tanggal_sql is None and m_tgl:\n            kata = re.sub(r\"\\s+\", \" \", m_tgl.group(1).lower())\n            if kata in (\"besok\", \"esok\"):\n                tanggal_sql = \"((now() at time zone 'Asia/Jakarta')::date + 1)\"\n            elif kata == \"lusa\":\n                tanggal_sql = \"((now() at time zone 'Asia/Jakarta')::date + 2)\"\n            elif kata in (\"hari ini\", \"hariini\"):\n                tanggal_sql = \"((now() at time zone 'Asia/Jakarta')::date)\"\n            else:\n                nama = kata.replace(\"hari \", \"\")\n                if nama in nama_hari:\n                    target = nama_hari[nama]\n                    tanggal_sql = \"((now() at time zone 'Asia/Jakarta')::date + case when ((%d - extract(dow from (now() at time zone 'Asia/Jakarta')::date)::int + 7) %% 7) = 0 then 7 else ((%d - extract(dow from (now() at time zone 'Asia/Jakarta')::date)::int + 7) %% 7) end)\" % (target, target)\n            if tanggal_sql is not None:\n                teks_sisa = teks_sisa[m_tgl.end():]\n        def rapikan_jam(h, mnt, penanda):\n            h = int(h); mnt = int(mnt or 0)\n            if penanda and penanda.lower() in (\"sore\", \"malam\", \"petang\") and h < 12: h += 12\n            if penanda and penanda.lower() == \"siang\" and h < 11: h += 12\n            return (\"%02d:%02d\" % (h, mnt)) if 0 <= h <= 23 and 0 <= mnt <= 59 else None\n        jam_rapi = None\n        m_jam = re.search(r\"\\bjam\\s+(\\d{1,2})(?:[:.](\\d{2}))?\\s*(pagi|siang|sore|malam|petang)?\", teks_sisa, re.I)\n        if m_jam:\n            jam_rapi = rapikan_jam(m_jam.group(1), m_jam.group(2), m_jam.group(3))\n            teks_sisa = teks_sisa[:m_jam.start()] + \" \" + teks_sisa[m_jam.end():]\n        else:\n            m_dua = re.search(r\"\\b(\\d{1,2})[:.](\\d{2})\\b\", teks_sisa)\n            if m_dua:\n                jam_rapi = rapikan_jam(m_dua.group(1), m_dua.group(2), None)\n                teks_sisa = teks_sisa[:m_dua.start()] + \" \" + teks_sisa[m_dua.end():]\n        teks = re.sub(r\"\\s+\", \" \", teks_sisa).strip(\" -.,\")\n        if not teks or not jam_rapi:\n            sql = \"select \" + quote(\"Sebutkan pengingat dan jamnya. Contoh: /ingatkan besok urus stnk jam 9 pagi\") + \"::text as output\"\n        elif harian:\n            sql = \"select public.ingatkan_tambah(\" + quote(teks) + \", 'harian', null, '\" + jam_rapi + \"'::time) as output\"\n        else:\n            if tanggal_sql is None:\n                tanggal_sql = \"((now() at time zone 'Asia/Jakarta')::date + case when (now() at time zone 'Asia/Jakarta')::time >= '\" + jam_rapi + \"'::time then 1 else 0 end)\"\n            sql = \"select public.ingatkan_tambah(\" + quote(teks) + \", 'sekali', ((\" + tanggal_sql + \") + '\" + jam_rapi + \"'::time) at time zone 'Asia/Jakarta', null) as output\"\nelif command == \"/dompet\":\n    tokens = arg.split()\n    sub = tokens.pop(0).lower() if tokens else \"\"\n    if sub in (\"\", \"daftar\", \"list\"):\n        sql = \"select public.saldo_text() as output\"\n    elif sub in (\"tambah\", \"baru\", \"buat\"):\n        kind = \"bank\"\n        if tokens and tokens[-1].lower() in (\"bank\", \"ewallet\", \"e-wallet\", \"cash\", \"tunai\"):\n            last = tokens.pop().lower()\n            kind = {\"e-wallet\": \"ewallet\", \"tunai\": \"cash\"}.get(last, last)\n        nama = \" \".join(tokens).strip()\n        ident = re.sub(r\"[^a-z0-9]+\", \"-\", nama.lower()).strip(\"-\")[:32]\n        if not nama or not ident:\n            sql = \"select \" + quote(\"Format: /dompet tambah BCA atau /dompet tambah Jago ewallet\") + \"::text as output\"\n        else:\n            sql = (\"with baru as (insert into public.accounts (id, name, kind) values (\" + quote(ident) + \", \" + quote(nama) + \", \" + quote(kind) + \") on conflict (id) do nothing returning name) \"\n                   \"select case when exists (select 1 from baru) then \" + quote(\"Dompet \" + nama + \" dibuat (id: \" + ident + \").\") + \" else \" + quote(\"Dompet \" + nama + \" sudah ada (id: \" + ident + \").\") + \" end as output\")\n    else:\n        sql = \"select \" + quote(\"Perintah dompet: /dompet · /dompet tambah BCA\") + \"::text as output\"\nelse: sql = \"select \" + quote(help_text) + \"::text as output\"\nreturn [{\"json\": {\"sql\": sql}}]"
+      },
+      "id": "ac102010-c40a-45d5-b411-a19410415487",
+      "name": "Siapkan Perintah",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -160
+      ],
+      "notes": "Mengubah perintah teks menjadi satu query. Tidak ada LLM di sini, jadi hasilnya pasti."
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "id": "ea41d0a5-300d-4d80-ad37-3d34af151a6b",
+      "name": "Jalankan Perintah",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        624,
+        -80
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "notes": "Menjalankan fungsi SQL: undo, hapus, saldo, anggaran, atau pindah dana."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ String($('Execute Workflow Trigger').first().json.chatId) }}",
+        "text": "={{ String($json.output).replaceAll(\"&\", \"&amp;\").replaceAll(\"<\", \"&lt;\").replaceAll(\">\", \"&gt;\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "b412886d-c572-4003-b4b5-0ba4427a1c5b",
+      "name": "Balas - Info",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        848,
+        -176
+      ],
+      "webhookId": "18317162-1983-4391-a38b-33b2a9b31bb3",
+      "credentials": {
+        "telegramApi": {
+          "id": "IdHLgDZlJnFkGquI",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Balasan rekap/saldo/perintah + bantuan/tolak. Chat ID dari Telegram Trigger."
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "eed1d427-4df8-4368-a1e1-26ab7980a07d",
+      "name": "Gabung SQL"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst esc = (v) => v === null || v === undefined ? 'null' : \"'\" + String(v).replace(/'/g, \"''\") + \"'\";\nconst workflowName = \"Expense Tracker - Perintah\";\nreturn $input.all().map((item) => {\n  const m = (item && item.json) || {};\n  const p = m.result && typeof m.result === 'object' ? m.result : m;\n  const chatId = p.chat && p.chat.id ? p.chat.id : null;\n  const messageId = p.message_id === undefined ? null : p.message_id;\n  const text = p.text === undefined ? '' : p.text;\n  const executionId = $execution && $execution.id ? $execution.id : '';\n  const sql = \"insert into public.conversation_logs (chat_id, message_id, direction, kind, text, intent, workflow, execution_id) values (\" + (chatId === null ? \"null\" : chatId) + \", \" + (messageId === null ? \"null\" : messageId) + \", 'out', 'text', \" + esc(text) + \", null, \" + esc(workflowName) + \", \" + esc(executionId) + \")\";\n  return { json: { sql } };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -176
+      ],
+      "id": "039a5642-1d17-4fb5-92c2-8b8b810a1eb3",
+      "name": "Log Keluar"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "{{ $json.sql }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1296,
+        -176
+      ],
+      "id": "d16adb0a-efaa-4e65-b208-a4a0d692901d",
+      "name": "Simpan Log Keluar",
+      "credentials": {
+        "postgres": {
+          "id": "7WpkUEySpBeCPFLT",
+          "name": "Supabase Finance"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Siapkan Perintah": {
+      "main": [
+        [
+          {
+            "node": "Gabung SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konteks Python - Hitung Rekap Bulanan": {
+      "main": [
+        [
+          {
+            "node": "Hitung Rekap Bulanan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Transaksi Sheet": {
+      "main": [
+        [
+          {
+            "node": "Konteks Python - Hitung Rekap Bulanan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Hitung Rekap Bulanan": {
+      "main": [
+        [
+          {
+            "node": "Balas - Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jalankan Perintah": {
+      "main": [
+        [
+          {
+            "node": "Balas - Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Konteks Python - Siapkan Perintah": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Rute Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rute Perintah": {
+      "main": [
+        [
+          {
+            "node": "Baca Transaksi Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Konteks Python - Siapkan Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gabung SQL",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Gabung SQL": {
+      "main": [
+        [
+          {
+            "node": "Jalankan Perintah",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Keluar": {
+      "main": [
+        [
+          {
+            "node": "Simpan Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Balas - Info": {
+      "main": [
+        [
+          {
+            "node": "Log Keluar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {},
+  "nodeGroups": [],
+  "pinData": {},
+  "versionId": "c4d006f5-b94e-43de-83c6-2763b700596e",
+  "activeVersionId": "c4d006f5-b94e-43de-83c6-2763b700596e",
+  "versionCounter": 10,
+  "triggerCount": 0,
+  "sourceWorkflowId": null,
+  "tags": [],
+  "shared": [
+    {
+      "updatedAt": "2026-11-18T10:07:33.574Z",
+      "createdAt": "2026-11-18T10:07:33.574Z",
+      "role": "workflow:owner",
+      "workflowId": "jQXTG54sIzYmiooY",
+      "projectId": "KGK26AcBupFwHjjf",
+      "project": {
+        "updatedAt": "2026-11-16T09:28:02.906Z",
+        "createdAt": "2026-11-16T09:22:39.425Z",
+        "id": "KGK26AcBupFwHjjf",
+        "name": "Pundaria Admin <admin@example.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "b19da6bd-5a13-4906-8cc1-74358ce20c41"
+      }
+    }
+  ],
+  "versionMetadata": {
+    "name": "Version 38f62152",
+    "description": ""
+  }
+}

@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    background:
+      radial-gradient(1100px 500px at 10% -10%, rgba(5, 150, 105, 0.06), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(2, 132, 199, 0.05), transparent 55%),
+      #f8fafc;
+    color: #0f172a;
+  }
+
+  ::selection {
+    background: rgba(5, 150, 105, 0.18);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-line bg-white p-5 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.18)];
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply border-transparent bg-mint text-white hover:bg-mint/90;
+  }
+
+  .btn-danger {
+    @apply border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-mint/60 focus:ring-2 focus:ring-mint/10;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-medium text-slate-600;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium;
+  }
+
+  .table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  .table thead th {
+    @apply border-b border-line px-3 py-2.5 text-[11px] font-medium uppercase tracking-wider text-slate-500;
+  }
+
+  .table tbody td {
+    @apply border-b border-line/70 px-3 py-3 align-middle text-slate-700;
+  }
+
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .money {
+    @apply tabular-nums;
+  }
+}

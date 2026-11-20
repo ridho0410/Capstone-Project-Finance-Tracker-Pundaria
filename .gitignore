@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+dashboard/.env.local
+tidak dipakai/
+*.pem
+*.key
+*.bak
+*.log
+schema-dump.json
+KREDENSIAL-PUNDARIA.txt
+node_modules/
+.next/
+__pycache__/
+.DS_Store
+Thumbs.db

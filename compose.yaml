@@ -1,0 +1,130 @@
+name: finance-tracker
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: finance
+      POSTGRES_USER: finance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - finance_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance -d finance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:2.47.7
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: finance
+      DB_POSTGRESDB_USER: finance
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+      N8N_HOST: ${FINANCE_HOST:?set FINANCE_HOST in .env}
+      N8N_PROTOCOL: https
+      N8N_PORT: 5678
+      N8N_EDITOR_BASE_URL: https://${FINANCE_HOST}/
+      N8N_WEBHOOK_URL: https://${DASHBOARD_HOST}/
+      N8N_PROXY_HOPS: 1
+      N8N_SECURE_COOKIE: "true"
+      GENERIC_TIMEZONE: Asia/Jakarta
+      N8N_RUNNERS_MODE: external
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS: 0.0.0.0
+      N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN:?set N8N_RUNNERS_AUTH_TOKEN in .env}
+      N8N_NATIVE_PYTHON_RUNNER: "true"
+    volumes:
+      - finance_n8n:/home/node/.n8n
+    networks:
+      - default
+      - task-runners
+
+  task-runners:
+    image: n8nio/runners:2.47.7-distroless
+    restart: unless-stopped
+    depends_on:
+      n8n:
+        condition: service_started
+    environment:
+      N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
+      N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN}
+      N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT: "15"
+    volumes:
+      - ./docker/n8n-task-runners.json:/etc/n8n-task-runners.json:ro
+    networks:
+      - task-runners
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 384m
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL in .env}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set SUPABASE_SERVICE_ROLE_KEY in .env}
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      NODE_ENV: production
+    networks:
+      - default
+    mem_limit: 512m
+
+  caddy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    depends_on:
+      - n8n
+      - dashboard
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      FINANCE_HOST: ${FINANCE_HOST}
+      FINANCE_EDITOR_IP: ${FINANCE_EDITOR_IP:?set FINANCE_EDITOR_IP in .env}
+      DASHBOARD_HOST: ${DASHBOARD_HOST:?set DASHBOARD_HOST in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - finance_caddy_data:/data
+      - finance_caddy_config:/config
+
+  # Opsional: hanya untuk IP publik dinamis (rumah). Aktifkan dengan
+  # docker compose --profile duckdns up -d
+  duckdns:
+    image: curlimages/curl:8.23.0
+    restart: unless-stopped
+    profiles: ["duckdns"]
+    environment:
+      DUCKDNS_SUBDOMAIN: ${FINANCE_DUCKDNS_SUBDOMAIN:-}
+      DUCKDNS_TOKEN: ${FINANCE_DUCKDNS_TOKEN:-}
+    entrypoint: ["/bin/sh", "/opt/update-duckdns.sh"]
+    volumes:
+      - ./scripts/update-duckdns.sh:/opt/update-duckdns.sh:ro
+
+volumes:
+  finance_pg:
+  finance_n8n:
+  finance_caddy_data:
+  finance_caddy_config:
+
+networks:
+  task-runners:
+    internal: true
